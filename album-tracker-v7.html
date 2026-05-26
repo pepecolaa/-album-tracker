@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的专辑收藏</title>
+<style>
+.sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;background:#ccc;transition:background .3s}
+.sync-dot.syncing{background:#f0ad4e;animation:pulse .8s infinite}
+.sync-dot.ok{background:#4caf50}
+.sync-dot.err{background:#e74c3c}
+.sync-status{font-size:12px;color:#aaa;display:flex;align-items:center;gap:4px;cursor:default}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;min-height:100vh}
+a{color:inherit;text-decoration:none}
+.topbar{background:#fff;border-bottom:0.5px solid #e0e0d8;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:16px;font-weight:600;letter-spacing:-.3px}
+.topbar-count{font-size:13px;color:#888}
+.container{max-width:960px;margin:0 auto;padding:1.75rem 1.5rem}
+.tabs{display:flex;border:0.5px solid #ddd;border-radius:8px;overflow:hidden;margin-bottom:1.5rem;width:fit-content}
+.tab{padding:8px 22px;font-size:13px;cursor:pointer;background:transparent;border:none;color:#888;font-family:inherit;transition:background .12s}
+.tab.active{background:#f0efe8;color:#1a1a1a;font-weight:500}
+.panel{display:none}.panel.active{display:block}
+input[type=text],input[type=number],textarea,select{padding:8px 12px;border:0.5px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;outline:none;color:#1a1a1a}
+input:focus,textarea:focus,select:focus{border-color:#aaa}
+button{padding:8px 16px;border:0.5px solid #ccc;border-radius:8px;background:#fff;font-size:13px;font-family:inherit;cursor:pointer;transition:background .1s}
+button:hover{background:#f0efe8}
+.search-row{display:flex;gap:8px;margin-bottom:6px}
+.search-row input{flex:1}
+.search-hint{font-size:12px;color:#999;margin-bottom:10px}
+.source-tags{display:flex;gap:6px;margin-bottom:14px}
+.source-tag{font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid #ddd;color:#888;background:#fff;cursor:pointer;transition:all .1s}
+.source-tag.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.result-list{border:0.5px solid #e0e0d8;border-radius:10px;overflow:hidden;margin-bottom:1.25rem;background:#fff}
+.result-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:0.5px solid #f0efe8;transition:background .1s;cursor:default}
+.result-item:last-child{border-bottom:none}
+.result-item:hover{background:#fafaf8}
+.rthumb{width:46px;height:46px;border-radius:6px;background:#f0efe8;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:20px;flex-shrink:0;overflow:hidden}
+.rthumb img{width:100%;height:100%;object-fit:cover}
+.rinfo{flex:1;min-width:0}
+.rtitle{font-size:14px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rsub{font-size:12px;color:#888;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-top:1px}
+.rsource{font-size:10px;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle}
+.src-mb{background:#f0e6f6;color:#7b3fa0}.src-lfm{background:#fde8e8;color:#c0392b}
+.radd{font-size:12px;padding:5px 12px;white-space:nowrap;flex-shrink:0}
+.msg{font-size:13px;color:#999;padding:1.5rem;text-align:center;background:#fff;border:0.5px solid #e0e0d8;border-radius:10px;margin-bottom:1rem}
+.review-section{margin-top:1.25rem}
+.review-title{font-size:12px;color:#999;margin-bottom:8px}
+.site-links{display:flex;flex-wrap:wrap;gap:7px}
+.site-link{display:flex;align-items:center;gap:5px;padding:6px 12px;border:0.5px solid #e0e0d8;border-radius:8px;color:#333;font-size:12px;background:#fff;transition:border-color .1s}
+.site-link:hover{border-color:#aaa;background:#fafaf8}
+.site-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.genre-row{display:flex;gap:6px}
+.genre-row select{flex:1}
+.add-form{background:#fff;border:0.5px solid #e0e0d8;border-radius:10px;padding:1.25rem;margin-bottom:1.5rem}
+.add-form h4{font-size:13px;font-weight:500;color:#555;margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-field label{font-size:12px;color:#999;display:block;margin-bottom:3px}
+.form-field input,.form-field select{width:100%}
+.field-label{font-size:12px;color:#999;margin-bottom:4px;margin-top:10px}
+/* ── 星评（10颗）── */
+.star-row{display:flex;gap:2px}
+.star{font-size:22px;cursor:pointer;color:#ddd;line-height:1;transition:color .1s}
+.star.on{color:#EF9F27}
+/* ── 收藏工具栏 ── */
+.lib-toolbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+.lib-toolbar select{flex:1;min-width:110px}
+.layout-btns{display:flex;border:0.5px solid #ddd;border-radius:8px;overflow:hidden;flex-shrink:0}
+.layout-btn{padding:6px 10px;border:none;background:#fff;cursor:pointer;font-size:14px;color:#aaa;transition:all .1s}
+.layout-btn.active{background:#f0efe8;color:#1a1a1a}
+.io-btns{display:flex;gap:7px;flex-shrink:0}
+.io-btns button{font-size:12px;padding:6px 12px}
+.lib-count{font-size:13px;color:#999;margin-bottom:10px}
+/* ── 网格布局 ── */
+.album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:14px}
+.acard{background:#fff;border:0.5px solid #e0e0d8;border-radius:10px;overflow:hidden;position:relative;cursor:pointer;transition:border-color .1s,box-shadow .1s}
+.acard:hover{border-color:#bbb;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.acard-cover{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#f0efe8}
+.acard-cover-ph{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:38px;background:#f5f5f3}
+.acard-body{padding:10px}
+.genre-badge{font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;display:inline-block;margin-bottom:5px}
+.acard-title{font-size:13px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-bottom:2px}
+.acard-artist{font-size:12px;color:#888;margin-bottom:5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.acard-stars{font-size:12px;margin-bottom:0}
+.del-btn{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0;z-index:2}
+.acard:hover .del-btn{display:flex}
+/* ── 列表布局 ── */
+.album-list{display:flex;flex-direction:column;border:0.5px solid #e0e0d8;border-radius:10px;overflow:hidden;background:#fff}
+.lrow{display:flex;align-items:center;gap:14px;padding:10px 14px;border-bottom:0.5px solid #f0efe8;cursor:pointer;transition:background .1s;position:relative}
+.lrow:last-child{border-bottom:none}
+.lrow:hover{background:#fafaf8}
+.lrow-cover{width:44px;height:44px;border-radius:6px;flex-shrink:0;background:#f0efe8;display:flex;align-items:center;justify-content:center;font-size:18px;color:#bbb;overflow:hidden}
+.lrow-cover img{width:100%;height:100%;object-fit:cover}
+.lrow-info{flex:1;min-width:0}
+.lrow-title{font-size:14px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.lrow-sub{font-size:12px;color:#888;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-top:1px}
+.lrow-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.lrow-stars{font-size:11px;letter-spacing:.5px}
+.lrow-del{background:none;border:none;color:#ccc;font-size:14px;cursor:pointer;padding:4px;border-radius:4px;display:none}
+.lrow:hover .lrow-del{display:block}
+.lrow-del:hover{color:#c0392b}
+.empty{text-align:center;color:#aaa;font-size:14px;padding:3rem 1rem;border:0.5px dashed #ddd;border-radius:10px;grid-column:1/-1}
+/* ── 弹窗 ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:200;padding:1rem}
+.modal{background:#fff;border-radius:14px;padding:1.5rem;width:400px;max-width:100%;max-height:90vh;overflow-y:auto;border:0.5px solid #e0e0d8}
+.modal h3{font-size:15px;font-weight:600;margin-bottom:14px}
+.modal-top{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start}
+.m-cover{width:80px;height:80px;border-radius:8px;object-fit:cover;flex-shrink:0;display:block}
+.m-cover-ph{width:80px;height:80px;border-radius:8px;background:#f0efe8;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0}
+.m-meta{flex:1;min-width:0}
+.m-meta strong{font-size:14px;font-weight:600;display:block;margin-bottom:3px}
+.m-meta p{font-size:12px;color:#888;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cover-actions{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.cover-btn{font-size:11px;padding:4px 9px;border-radius:6px;border:0.5px solid #ccc;background:#f5f5f3;color:#666;cursor:pointer;font-family:inherit}
+.cover-btn:hover{color:#333;background:#eee}
+.tracklist{margin-top:10px;max-height:140px;overflow-y:auto;border:0.5px solid #eee;border-radius:8px}
+.tracklist-title{font-size:11px;color:#999;padding:6px 10px 4px;border-bottom:0.5px solid #f0efe8;font-weight:500}
+.track-item{display:flex;gap:8px;padding:5px 10px;font-size:12px;border-bottom:0.5px solid #f9f9f7}
+.track-item:last-child{border-bottom:none}
+.track-num{color:#bbb;flex-shrink:0;width:20px;text-align:right}
+.track-name{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#333}
+.track-dur{color:#bbb;flex-shrink:0}
+.modal textarea{width:100%;height:60px;resize:none;margin-top:4px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.btn-primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn-primary:hover{background:#333}
+/* ── 详情弹窗 ── */
+.detail-modal{width:520px;max-width:100%}
+.detail-header{display:flex;gap:18px;margin-bottom:18px}
+.detail-cover{width:120px;height:120px;border-radius:10px;object-fit:cover;flex-shrink:0;display:block;background:#f0efe8}
+.detail-cover-ph{width:120px;height:120px;border-radius:10px;background:#f5f5f3;display:flex;align-items:center;justify-content:center;font-size:48px;flex-shrink:0}
+.detail-info{flex:1;min-width:0;padding-top:2px}
+.detail-title{font-size:18px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.detail-artist{font-size:14px;color:#555;margin-bottom:6px}
+.detail-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.detail-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#f0efe8;color:#666}
+.detail-stars{font-size:15px;letter-spacing:1px;margin-bottom:6px}
+.detail-links{display:flex;gap:6px;flex-wrap:wrap}
+.detail-link{font-size:11px;padding:3px 9px;border-radius:20px;border:0.5px solid #e0e0d8;color:#666}
+.detail-link:hover{border-color:#aaa;color:#333}
+.detail-section{margin-top:14px}
+.detail-section-title{font-size:12px;font-weight:500;color:#999;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.detail-tracklist{border:0.5px solid #eee;border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto}
+.detail-note{font-size:13px;color:#555;line-height:1.6;background:#fafaf8;border-radius:8px;padding:10px 12px}
+.detail-edit-btn{font-size:12px;padding:5px 12px;color:#666}
+/* ── 批量选择 ── */
+.acard.selected{border-color:#c0392b;box-shadow:0 0 0 2px #f0c0bb}
+.lrow.selected{background:#fff8f7}
+.acard-check{position:absolute;top:7px;left:7px;width:20px;height:20px;border-radius:50%;border:2px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;z-index:3;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.lrow-check{width:20px;height:20px;border-radius:50%;border:2px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;flex-shrink:0}
+.acard.selected .acard-check,.lrow.selected .lrow-check{background:#c0392b;border-color:#c0392b;color:#fff}
+/* ── 保存提示 ── */
+.save-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;font-size:13px;padding:8px 18px;border-radius:20px;z-index:999;opacity:0;transition:opacity .2s;pointer-events:none}
+.save-toast.show{opacity:1}
+@media(max-width:520px){
+  .container{padding:1rem}
+  .form-grid{grid-template-columns:1fr}
+  .album-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  .detail-header{flex-direction:column;align-items:center;text-align:center}
+  .detail-cover,.detail-cover-ph{width:140px;height:140px}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="topbar-title">🎵 我的专辑收藏</span>
+  <div style="display:flex;align-items:center;gap:14px">
+    <span class="sync-status" id="sync-status" title="云端同步状态"><span class="sync-dot" id="sync-dot"></span><span id="sync-text">连接中…</span></span>
+    <span class="topbar-count" id="top-count"></span>
+  </div>
+</div>
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('search')">搜索添加</button>
+    <button class="tab" onclick="switchTab('manual')">手动添加</button>
+    <button class="tab" onclick="switchTab('library')">我的收藏</button>
+  </div>
+
+  <!-- 搜索面板 -->
+  <div class="panel active" id="panel-search">
+    <div class="search-row">
+      <input type="text" id="sinp" placeholder="输入专辑名或艺术家名…" onkeydown="if(event.key==='Enter')doSearch()">
+      <button onclick="doSearch()">搜索</button>
+    </div>
+    <div class="search-hint">同时搜索 MusicBrainz 和 Last.fm，结果合并显示</div>
+    <div class="source-tags">
+      <span class="source-tag on" id="tog-mb" onclick="toggleSource('mb')">MusicBrainz</span>
+      <span class="source-tag on" id="tog-lfm" onclick="toggleSource('lfm')">Last.fm</span>
+    </div>
+    <div id="search-area"><div class="msg">在上方输入专辑名或艺术家名开始搜索</div></div>
+    <div class="review-section">
+      <div class="review-title">乐评网站直达</div>
+      <div class="site-links">
+        <a class="site-link" href="https://music.douban.com" target="_blank"><span class="site-dot" style="background:#00a651"></span>豆瓣音乐</a>
+        <a class="site-link" href="https://www.last.fm" target="_blank"><span class="site-dot" style="background:#d51007"></span>Last.fm</a>
+        <a class="site-link" href="https://rateyourmusic.com" target="_blank"><span class="site-dot" style="background:#1a73e8"></span>RateYourMusic</a>
+        <a class="site-link" href="https://www.allmusic.com" target="_blank"><span class="site-dot" style="background:#e87722"></span>AllMusic</a>
+        <a class="site-link" href="https://pitchfork.com/reviews/albums/" target="_blank"><span class="site-dot" style="background:#222"></span>Pitchfork</a>
+        <a class="site-link" href="https://www.metacritic.com/browse/music/" target="_blank"><span class="site-dot" style="background:#ffcc34"></span>Metacritic</a>
+        <a class="site-link" href="https://musicbrainz.org" target="_blank"><span class="site-dot" style="background:#ba478f"></span>MusicBrainz</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 手动添加 -->
+  <div class="panel" id="panel-manual">
+    <div class="add-form">
+      <h4>手动录入专辑信息</h4>
+      <div class="form-grid">
+        <div class="form-field"><label>专辑名称 *</label><input type="text" id="mi-title" placeholder="e.g. Promise"></div>
+        <div class="form-field"><label>艺术家 *</label><input type="text" id="mi-artist" placeholder="e.g. Sade"></div>
+        <div class="form-field"><label>发行年份</label><input type="number" id="mi-year" placeholder="e.g. 1985" min="1900" max="2099"></div>
+        <div class="form-field"><label>曲目数</label><input type="number" id="mi-tracks" placeholder="e.g. 9" min="1"></div>
+      </div>
+      <div class="form-field" style="margin-bottom:10px">
+        <label>流派（两级）</label>
+        <div class="genre-row">
+          <select id="mi-genre-main" onchange="updateSubGenre('mi-genre-sub','mi-genre-main')"><option value="">-- 主流派 --</option></select>
+          <select id="mi-genre-sub"><option value="">-- 子流派 --</option></select>
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:10px"><label>封面图片</label><input type="file" id="mi-cover" accept="image/*" style="padding:5px 0;border:none;background:none;font-size:12px;width:100%"></div>
+      <div class="form-field" style="margin-bottom:12px"><label>个人笔记</label><input type="text" id="mi-note" placeholder="写下你的感受…" style="width:100%"></div>
+      <div style="margin-bottom:14px">
+        <div class="field-label">评分（10分制）</div>
+        <div class="star-row" id="mi-stars"></div>
+      </div>
+      <button onclick="saveManual()" style="width:100%;padding:9px;font-size:14px">添加到收藏</button>
+    </div>
+  </div>
+
+  <!-- 收藏面板 -->
+  <div class="panel" id="panel-library">
+    <div style="margin-bottom:8px">
+      <input type="text" id="f-search" placeholder="搜索专辑名或艺术家…" oninput="onSearchInput()" style="width:100%;padding:8px 12px;font-size:13px">
+    </div>
+    <div class="lib-toolbar">
+      <select id="f-genre-main" onchange="onFilterGenreMain()"><option value="">全部流派</option></select>
+      <select id="f-genre-sub" onchange="renderLib()"><option value="">全部子流派</option></select>
+      <select id="f-rating" onchange="renderLib()">
+        <option value="">全部评分</option>
+        <option value="9">9分以上</option>
+        <option value="7">7分以上</option>
+        <option value="5">5分以上</option>
+      </select>
+      <select id="f-sort" onchange="renderLib()">
+        <option value="added">最新添加</option>
+        <option value="rating">评分最高</option>
+        <option value="artist">歌手名 A–Z</option>
+        <option value="title">专辑名 A–Z</option>
+        <option value="year">发行年份</option>
+      </select>
+      <div class="layout-btns">
+        <button class="layout-btn active" id="btn-grid" onclick="setLayout('grid')" title="网格">⊞</button>
+        <button class="layout-btn" id="btn-list" onclick="setLayout('list')" title="列表">☰</button>
+      </div>
+      <div class="io-btns">
+        <button onclick="exportCSV()">导出</button>
+        <button onclick="document.getElementById('imp-inp').click()">导入</button>
+        <input type="file" id="imp-inp" accept=".csv" style="display:none" onchange="importCSV(event)">
+        <button onclick="startEnrich()" id="enrich-start-btn" style="color:#1a5f8a;border-color:#b8d8f0">补全数据</button>
+        <button id="btn-select-mode" onclick="toggleSelectMode()" style="color:#c0392b;border-color:#e8c0bb">批量删除</button>
+      </div>
+    </div>
+    <!-- 批量删除工具栏 -->
+    <div id="bulk-bar" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:#fff8f7;border:0.5px solid #f0c0bb;border-radius:10px;margin-bottom:10px">
+      <span id="bulk-sel-count" style="font-size:13px;color:#555;flex:1">已选 0 张</span>
+      <button onclick="bulkSelectAll()" style="font-size:12px;padding:5px 11px">全选筛选结果</button>
+      <button onclick="bulkDeselectAll()" style="font-size:12px;padding:5px 11px">取消全选</button>
+      <button onclick="bulkDeleteSelected()" style="font-size:12px;padding:5px 11px;background:#c0392b;color:#fff;border-color:#c0392b">删除所选</button>
+      <button onclick="toggleSelectMode()" style="font-size:12px;padding:5px 11px">退出</button>
+    </div>
+    <div class="lib-count" id="lib-count"></div>
+    <!-- 批量补全进度条 -->
+    <div id="enrich-bar" style="display:none;flex-direction:column;gap:6px;padding:12px 14px;background:#f0f8ff;border:0.5px solid #b8d8f0;border-radius:10px;margin-bottom:10px;font-size:13px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span id="enrich-label" style="color:#1a5f8a;font-weight:500">正在补全封面与数据…</span>
+        <div style="display:flex;gap:7px">
+          <button id="enrich-pause-btn" onclick="toggleEnrichPause()" style="font-size:12px;padding:4px 10px">暂停</button>
+          <button onclick="stopEnrich()" style="font-size:12px;padding:4px 10px;color:#c0392b;border-color:#e8c0bb">停止</button>
+        </div>
+      </div>
+      <div style="background:#d0e8f8;border-radius:20px;height:6px;overflow:hidden">
+        <div id="enrich-prog" style="height:100%;background:#1a5f8a;border-radius:20px;width:0%;transition:width .3s"></div>
+      </div>
+      <div id="enrich-detail" style="color:#888;font-size:12px"></div>
+    </div>
+    <div id="lib-container"></div>
+  </div>
+</div>
+
+<!-- 添加弹窗 -->
+<div class="modal-overlay" id="add-modal" style="display:none" onclick="if(event.target===this)closeAddModal()">
+  <div class="modal">
+    <h3>添加到收藏</h3>
+    <div class="modal-top">
+      <div>
+        <div id="m-cover-slot"></div>
+        <div class="cover-actions">
+          <button class="cover-btn" onclick="document.getElementById('cover-file-inp').click()">上传封面</button>
+          <span id="m-mbid-btn"></span>
+        </div>
+      </div>
+      <div class="m-meta">
+        <strong id="m-title"></strong>
+        <p id="m-artist-p"></p>
+        <p id="m-year-p"></p>
+        <p id="m-version-p" style="color:#c0392b;font-weight:500"></p>
+      </div>
+    </div>
+    <div class="field-label">流派</div>
+    <div class="genre-row" style="margin-bottom:10px">
+      <select id="m-genre-main" onchange="updateSubGenre('m-genre-sub','m-genre-main')"><option value="">-- 主流派 --</option></select>
+      <select id="m-genre-sub"><option value="">-- 子流派 --</option></select>
+    </div>
+    <div id="m-tracklist-wrap"></div>
+    <div class="field-label">评分（10分制）</div>
+    <div class="star-row" id="modal-stars" style="margin-bottom:10px"></div>
+    <div class="field-label">个人笔记（可选）</div>
+    <textarea id="m-note" placeholder="写下你的感受…"></textarea>
+    <div class="modal-btns">
+      <button onclick="closeAddModal()">取消</button>
+      <button class="btn-primary" onclick="saveFromSearch()">加入收藏</button>
+    </div>
+  </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal-overlay" id="detail-modal" style="display:none" onclick="if(event.target===this)closeDetailModal()">
+  <div class="modal detail-modal">
+    <div id="detail-content"></div>
+    <div class="modal-btns" style="margin-top:10px">
+      <button class="detail-edit-btn" id="detail-del-btn">移除收藏</button>
+      <button class="detail-edit-btn" id="detail-edit-btn" onclick="toggleDetailEdit()">编辑</button>
+      <button onclick="closeDetailModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="cover-file-inp" accept="image/*" style="display:none" onchange="handleCoverUpload(event)">
+<div class="save-toast" id="save-toast">已保存到文件</div>
+
+
+<script>
+const LASTFM_KEY = 'aed8891e54840cf5e45c5f6a0216d6d5';
+const MAX_STARS = 10; // 10分制
+
+// ── 两级流派数据 ──────────────────────────────────────
+const GENRE_TREE = {
+  'Jazz':['Cool Jazz','Acid Jazz','Bebop','Free Jazz','Fusion','Hard Bop','Modal Jazz','Smooth Jazz','Swing','Vocal Jazz'],
+  'Rock':['Alternative Rock','Art Rock','Classic Rock','Garage Rock','Grunge','Hard Rock','Indie Rock','Post-Rock','Prog Rock','Punk Rock'],
+  'Pop':['Art Pop','Dance Pop','Dream Pop','Electropop','Indie Pop','J-Pop','K-Pop','Synth-Pop','Teen Pop'],
+  'Hip-Hop':['Boom Bap','Conscious Hip-Hop','Drill','G-Funk','Gangsta Rap','Lo-fi Hip-Hop','Trap','Trip-Hop','Underground Hip-Hop'],
+  'Electronic':['Ambient','Breakbeat','Drum and Bass','Dubstep','EDM','House','IDM','Techno','Trance'],
+  'R&B':['Contemporary R&B','Funk','Neo Soul','New Jack Swing','Quiet Storm','Soul'],
+  'Classical':['Baroque','Chamber Music','Contemporary Classical','Opera','Orchestral','Romantic','Symphony'],
+  'Folk':['Acoustic Folk','Americana','Anti-Folk','Celtic','Country Folk','Indie Folk','Singer-Songwriter'],
+  'Metal':['Black Metal','Death Metal','Doom Metal','Heavy Metal','Math Metal','Metalcore','Nu-Metal','Post-Metal','Progressive Metal','Thrash Metal'],
+  'Blues':['Chicago Blues','Country Blues','Delta Blues','Electric Blues','Jump Blues','Soul Blues'],
+  'Country':['Alternative Country','Bluegrass','Classic Country','Country Pop','Outlaw Country'],
+  'Latin':['Bossa Nova','Latin Jazz','Reggaeton','Salsa','Samba','Tango'],
+  'World':['African','Afrobeat','Celtic','Flamenco','Indian Classical','Reggae','Ska'],
+  'Other':[],
+};
+const GENRE_C = {
+  Jazz:{bg:'#E1F5EE',c:'#0F6E56'},Rock:{bg:'#FAECE7',c:'#993C1D'},Pop:{bg:'#FBEAF0',c:'#993556'},
+  'Hip-Hop':{bg:'#EEEDFE',c:'#534AB7'},Electronic:{bg:'#E6F1FB',c:'#185FA5'},
+  'R&B':{bg:'#FAEEDA',c:'#854F0B'},Classical:{bg:'#F1EFE8',c:'#5F5E5A'},
+  Folk:{bg:'#EAF3DE',c:'#3B6D11'},Metal:{bg:'#FCEBEB',c:'#A32D2D'},
+  Blues:{bg:'#E3F0F8',c:'#1a5f8a'},Country:{bg:'#EAF3DE',c:'#3B6D11'},
+  Latin:{bg:'#FAEEDA',c:'#854F0B'},World:{bg:'#E1F5EE',c:'#0F6E56'},Other:{bg:'#F1EFE8',c:'#5F5E5A'}
+};
+function gc(g){return GENRE_C[g]||{bg:'#F1EFE8',c:'#5F5E5A'}}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+// ── 流派下拉 ──────────────────────────────────────────
+function populateMainGenre(selId,val=''){
+  const sel=document.getElementById(selId);
+  sel.innerHTML='<option value="">-- 主流派 --</option>'+Object.keys(GENRE_TREE).map(g=>`<option${g===val?' selected':''}>${g}</option>`).join('');
+}
+function updateSubGenre(subId,mainId,val=''){
+  const main=document.getElementById(mainId).value;
+  const sel=document.getElementById(subId);
+  sel.innerHTML='<option value="">-- 子流派 --</option>'+(GENRE_TREE[main]||[]).map(s=>`<option${s===val?' selected':''}>${s}</option>`).join('');
+}
+
+// ── Supabase 配置 ─────────────────────────────────────
+const SB_URL = 'https://qvurxzqqsfpxkiyclqma.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2dXJ4enFxc2ZweGtpeWNscW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODg3MzUsImV4cCI6MjA5NTM2NDczNX0.6-XdapVvbvGqMrBfdOIXiEpGaYf8UX0YeVBgBL7LTbY';
+const SB_HEADERS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
+
+function setSyncStatus(state, text){
+  const dot=document.getElementById('sync-dot');
+  const txt=document.getElementById('sync-text');
+  if(!dot||!txt) return;
+  dot.className='sync-dot '+(state==='ok'?'ok':state==='syncing'?'syncing':'err');
+  txt.textContent=text;
+}
+
+// ── 数据存储（Supabase 云端 + localStorage 备份）──────
+let library = [];
+// 先从 localStorage 恢复，避免白屏
+try{const cached=localStorage.getItem('album-library-v7');if(cached)library=JSON.parse(cached);}catch(e){}
+
+// 启动时从 Supabase 加载全量数据
+async function loadFromSupabase(){
+  setSyncStatus('syncing','同步中…');
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/albums?order=added_at.desc&limit=5000`,{headers:SB_HEADERS});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows=await res.json();
+    library=rows.map(dbRowToAlbum);
+    try{localStorage.setItem('album-library-v7',JSON.stringify(library));}catch(e){}
+    setSyncStatus('ok','已同步');
+    updateTopCount();updateGenreFilters();renderLib();
+  }catch(e){
+    console.error('Supabase load error:',e);
+    setSyncStatus('err','离线模式');
+    // 使用 localStorage 缓存继续工作
+    updateTopCount();updateGenreFilters();renderLib();
+  }
+}
+
+// 数据库行 → 本地对象
+function dbRowToAlbum(r){
+  return{
+    id:r.id, title:r.title||'', artist:r.artist||'', year:r.year||'',
+    genreMain:r.genre_main||'', genreSub:r.genre_sub||'',
+    tracks:r.tracks||0, rating:r.rating||0, note:r.note||'',
+    addedAt:r.added_at||new Date().toISOString(),
+    coverUrl:r.cover_url||null, mbid:r.mbid||'', source:r.source||'',
+    disambiguation:r.disambiguation||'', isDeluxe:r.is_deluxe||false,
+    tracklist:r.tracklist?JSON.parse(r.tracklist):[], links:r.links?JSON.parse(r.links):{},
+  };
+}
+
+// 本地对象 → 数据库行
+function albumToDbRow(a){
+  return{
+    id:a.id, title:a.title||'', artist:a.artist||'', year:a.year||'',
+    genre_main:a.genreMain||'', genre_sub:a.genreSub||'',
+    tracks:a.tracks||0, rating:a.rating||0, note:a.note||'',
+    added_at:a.addedAt||new Date().toISOString(),
+    cover_url:a.coverUrl||null, mbid:a.mbid||'', source:a.source||'',
+    disambiguation:a.disambiguation||'', is_deluxe:a.isDeluxe||false,
+    tracklist:JSON.stringify(a.tracklist||[]), links:JSON.stringify(a.links||{}),
+  };
+}
+
+// upsert 单条到 Supabase（新增或更新都用这个）
+async function sbUpsert(album){
+  setSyncStatus('syncing','保存中…');
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/albums`,{
+      method:'POST', headers:{...SB_HEADERS,'Prefer':'resolution=merge-duplicates,return=representation'},
+      body:JSON.stringify(albumToDbRow(album))
+    });
+    if(!res.ok){const t=await res.text();throw new Error(t);}
+    setSyncStatus('ok','已保存');
+  }catch(e){console.error('sbUpsert error:',e);setSyncStatus('err','保存失败');}
+}
+
+// 删除单条
+async function sbDelete(id){
+  setSyncStatus('syncing','删除中…');
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/albums?id=eq.${id}`,{method:'DELETE',headers:SB_HEADERS});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    setSyncStatus('ok','已删除');
+  }catch(e){console.error('sbDelete error:',e);setSyncStatus('err','删除失败');}
+}
+
+// 批量删除
+async function sbDeleteMany(ids){
+  setSyncStatus('syncing','删除中…');
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/albums?id=in.(${ids.join(',')})`,{method:'DELETE',headers:SB_HEADERS});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    setSyncStatus('ok','已删除');
+  }catch(e){console.error('sbDeleteMany error:',e);setSyncStatus('err','删除失败');}
+}
+
+// saveLibrary：更新 localStorage 缓存 + 刷新 UI（实际写云端在各操作里单独调用）
+function saveLibrary(){
+  try{localStorage.setItem('album-library-v7',JSON.stringify(library));}catch(e){}
+  updateTopCount();
+}
+
+// ── 状态变量 ──────────────────────────────────────────
+let searchResults=[], pendingAlbum=null, modalRating=0, pendingCoverUrl=null;
+let miStarRating=0, useMB=true, useLFM=true;
+let currentLayout=localStorage.getItem('album-layout')||'grid';
+let detailAlbumId=null, detailEditMode=false, detailEditRating=0;
+let selectMode=false, selectedIds=new Set();
+let currentPage=1, filteredList=[];
+const PAGE_SIZE=100;
+
+// ── 初始化 ────────────────────────────────────────────
+buildStarRow('mi-stars', 'miStarRating', 'mi');
+buildStarRow('modal-stars', 'modalRating', 'modal');
+populateMainGenre('mi-genre-main');
+populateMainGenre('m-genre-main');
+setLayout(currentLayout, false);
+updateTopCount(); updateGenreFilters(); renderLib();
+// 从 Supabase 加载云端数据
+loadFromSupabase();
+
+// ── 星评构建（通用，支持 MAX_STARS 颗）────────────────
+function buildStarRow(containerId, varName, prefix){
+  const row=document.getElementById(containerId);
+  if(!row) return;
+  row.innerHTML=[...Array(MAX_STARS)].map((_,i)=>`<span class="star" data-v="${i+1}" data-prefix="${prefix}">★</span>`).join('');
+  row.querySelectorAll('.star').forEach(s=>{
+    s.addEventListener('click',()=>{
+      if(prefix==='mi') miStarRating=+s.dataset.v;
+      else if(prefix==='modal') modalRating=+s.dataset.v;
+      refreshStars(containerId, prefix==='mi'?miStarRating:modalRating);
+    });
+    s.addEventListener('mouseenter',()=>refreshStars(containerId,+s.dataset.v));
+    s.addEventListener('mouseleave',()=>refreshStars(containerId,prefix==='mi'?miStarRating:modalRating));
+  });
+}
+function refreshStars(containerId, val){
+  document.querySelectorAll(`#${containerId} .star`).forEach(s=>s.classList.toggle('on',+s.dataset.v<=val));
+}
+
+// ── 标签页 ───────────────────────────────────────────
+function switchTab(t){
+  ['search','manual','library'].forEach((id,i)=>{
+    document.querySelectorAll('.tab')[i].classList.toggle('active',id===t);
+    document.getElementById('panel-'+id).classList.toggle('active',id===t);
+  });
+  if(t==='library'){updateGenreFilters();renderLib();}
+}
+function toggleSource(s){
+  if(s==='mb') useMB=!useMB; else useLFM=!useLFM;
+  document.getElementById('tog-mb').classList.toggle('on',useMB);
+  document.getElementById('tog-lfm').classList.toggle('on',useLFM);
+}
+function setLayout(l,render=true){
+  currentLayout=l;
+  localStorage.setItem('album-layout',l);
+  document.getElementById('btn-grid').classList.toggle('active',l==='grid');
+  document.getElementById('btn-list').classList.toggle('active',l==='list');
+  if(render) renderLib();
+}
+
+// ── 搜索 ─────────────────────────────────────────────
+async function doSearch(){
+  const q=document.getElementById('sinp').value.trim();
+  if(!q) return;
+  const area=document.getElementById('search-area');
+  area.innerHTML='<div class="msg">搜索中…</div>';
+  const promises=[];
+  if(useMB) promises.push(searchMusicBrainz(q).catch(()=>[]));
+  if(useLFM) promises.push(searchLastFm(q).catch(()=>[]));
+  const flat=(await Promise.all(promises)).flat();
+  const seen=new Map();
+  for(const r of flat){const k=(r.title+'::'+r.artist).toLowerCase();if(!seen.has(k)||(!seen.get(k).coverUrl&&r.coverUrl))seen.set(k,r);}
+  searchResults=[...seen.values()];
+  if(!searchResults.length){area.innerHTML='<div class="msg">未找到结果，换个关键词试试</div>';return;}
+  renderSearchResults(area);
+}
+async function searchMusicBrainz(q){
+  const res=await fetch(`https://musicbrainz.org/ws/2/release/?query=${encodeURIComponent(`release:"${q}" OR artist:"${q}"`)}&fmt=json&limit=8`,{headers:{'User-Agent':'AlbumTracker/4.0'}});
+  if(!res.ok) return[];
+  const data=await res.json();
+  return(data.releases||[]).map(r=>{
+    const artist=(r['artist-credit']||[]).map(a=>typeof a==='string'?a:(a.artist?.name||'')).join('');
+    const {main:genreMain,sub:genreSub}=matchGenre((r.genres&&r.genres[0]?.name)||'');
+    return{source:'mb',mbid:r.id,title:r.title,artist,year:r.date?r.date.slice(0,4):'',genreMain,genreSub,tracks:r['track-count']||0,coverUrl:null,coverVerified:false,disambiguation:r.disambiguation||'',isDeluxe:/deluxe|expanded|bonus|remaster|edition|special/i.test(r.title+' '+(r.disambiguation||''))};
+  });
+}
+async function searchLastFm(q){
+  const res=await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(q)}&api_key=${LASTFM_KEY}&format=json&limit=8`);
+  if(!res.ok) return[];
+  const albums=(await res.json()).results?.albummatches?.album||[];
+  const basic=albums.map(a=>{
+    const img=(a.image||[]).find(i=>i.size==='large')||{};
+    const cover=img['#text']&&!img['#text'].includes('2a96cbd8b46e442fc41c2b86b821562f')?img['#text']:null;
+    return{source:'lfm',mbid:'',title:a.name,artist:a.artist,year:'',genreMain:'',genreSub:'',tracks:0,coverUrl:cover,coverVerified:!!cover,disambiguation:'',isDeluxe:false,tracklist:[]};
+  });
+  // Last.fm getinfo：补全封面、曲目、流派（阻塞，渲染前需要）
+  await Promise.all(basic.map(async a=>{
+    try{
+      const d=await (await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(a.artist)}&album=${encodeURIComponent(a.title)}&api_key=${LASTFM_KEY}&format=json`)).json();
+      const info=d.album;if(!info)return;
+      const bigImg=(info.image||[]).find(i=>i.size==='extralarge')||{};
+      if(bigImg['#text']&&!bigImg['#text'].includes('2a96cbd8b46e442fc41c2b86b821562f')){a.coverUrl=bigImg['#text'];a.coverVerified=true;}
+      const tArr=Array.isArray(info.tracks?.track)?info.tracks.track:[info.tracks?.track].filter(Boolean);
+      if(tArr.length){a.tracks=tArr.length;a.tracklist=tArr.map((t,i)=>({pos:i+1,title:t.name,dur:t.duration?+t.duration*1000:0}));}
+      const tagArr=Array.isArray(info.tags?.tag)?info.tags.tag:[info.tags?.tag].filter(Boolean);
+      if(tagArr.length){const {main,sub}=matchGenre(tagArr[0]?.name||'');a.genreMain=main;a.genreSub=sub;}
+    }catch(e){}
+  }));
+  // Wikipedia 年份补全不阻塞：渲染后在后台异步填入（见 renderSearchResults）
+  return basic;
+}
+
+// ── Wikipedia API：从 infobox 提取发行年份 ──────────────
+// 带超时保护的 fetch 封装
+function fetchWithTimeout(url, ms=5000){
+  const controller=new AbortController();
+  const tid=setTimeout(()=>controller.abort(),ms);
+  return fetch(url,{signal:controller.signal}).finally(()=>clearTimeout(tid));
+}
+
+async function fetchWikiYear(title, artist){
+  const t0=performance.now();
+  try{
+    // 1. 搜索 Wikipedia 页面（超时5秒）
+    const q=`${title} ${artist} album`;
+    const sd=await (await fetchWithTimeout(
+      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=3&format=json&origin=*`
+    )).json();
+    const pages=sd?.query?.search||[];
+    if(!pages.length) return null;
+
+    // 取最匹配的结果（标题含专辑名的优先）
+    const best=pages.find(p=>p.title.toLowerCase().includes(title.toLowerCase()))||pages[0];
+
+    // 2. 获取 wikitext（只取第0节，即 infobox，超时5秒）
+    const wd=await (await fetchWithTimeout(
+      `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvsection=0&titles=${encodeURIComponent(best.title)}&format=json&origin=*`
+    )).json();
+    const pages2=Object.values(wd?.query?.pages||{});
+    if(!pages2.length) return null;
+    const wikitext=pages2[0]?.revisions?.[0]?.['*']||'';
+
+    // 3. 解析 infobox released 字段
+    const relMatch=wikitext.match(/\|\s*released\s*=([^\n|}{]*(?:\{\{[^}]*\}\}[^\n|}{]*)?)/i);
+    if(!relMatch) return null;
+    const relStr=relMatch[1];
+    const sdMatch=relStr.match(/\{\{(?:start date|dts|release date)[^}]*\|\s*(\d{4})/i);
+    if(sdMatch){ console.log(`[Wiki] ${title}: ${sdMatch[1]} (${Math.round(performance.now()-t0)}ms)`); return sdMatch[1]; }
+    const yrMatch=relStr.match(/\b(19|20)\d{2}\b/);
+    if(yrMatch){ console.log(`[Wiki] ${title}: ${yrMatch[0]} (${Math.round(performance.now()-t0)}ms)`); return yrMatch[0]; }
+    return null;
+  }catch(e){
+    if(e.name==='AbortError') console.warn(`[Wiki] ${title}: 超时(>${5000}ms)`);
+    else console.warn(`[Wiki] ${title}: 失败`, e.message);
+    return null;
+  }
+}
+function matchGenre(raw){
+  if(!raw)return{main:'',sub:''};const r=raw.toLowerCase();
+  for(const[main,subs]of Object.entries(GENRE_TREE)){
+    if(r.includes(main.toLowerCase()))return{main,sub:''};
+    for(const sub of subs)if(r.includes(sub.toLowerCase()))return{main,sub};
+  }
+  return{main:'Other',sub:''};
+}
+function renderSearchResults(area){
+  area.innerHTML=`<div class="result-list">${searchResults.map((a,i)=>`
+    <div class="result-item" id="ri-${i}">
+      <div class="rthumb" id="rth-${i}">${a.coverUrl&&a.coverVerified?`<img src="${esc(a.coverUrl)}">`:'♪'}</div>
+      <div class="rinfo">
+        <div class="rtitle">${esc(a.title)}${a.isDeluxe?'<span class="rsource" style="background:#fff3cd;color:#856404">豪华版</span>':''}<span class="rsource ${a.source==='mb'?'src-mb':'src-lfm'}">${a.source==='mb'?'MusicBrainz':'Last.fm'}</span></div>
+        <div class="rsub" id="rsub-${i}">${esc(a.artist)}${a.year?' · '+a.year:''}${a.disambiguation?' · '+a.disambiguation:''}${a.tracks?' · '+a.tracks+'首':''}</div>
+      </div>
+      <button class="radd" onclick="openAddModal(${i})">+ 添加</button>
+    </div>`).join('')}</div>`;
+  searchResults.forEach((a,i)=>{
+    // MusicBrainz 封面异步加载
+    if(a.source==='mb'&&a.mbid&&!a.coverVerified){
+      const img=new Image();
+      img.onload=()=>{a.coverUrl=img.src;a.coverVerified=true;const el=document.getElementById('rth-'+i);if(el)el.innerHTML=`<img src="${esc(img.src)}">`;};
+      img.onerror=()=>{a.coverUrl=null;};
+      img.src=`https://coverartarchive.org/release/${a.mbid}/front-250`;
+    }
+    // Last.fm 结果缺少年份时，异步用 Wikipedia 补全
+    if(a.source==='lfm'&&!a.year){
+      fetchWikiYear(a.title, a.artist).then(year=>{
+        if(!year) return;
+        a.year=year;
+        const sub=document.getElementById('rsub-'+i);
+        if(sub) sub.textContent=`${a.artist}${a.year?' · '+a.year:''}${a.disambiguation?' · '+a.disambiguation:''}${a.tracks?' · '+a.tracks+'首':''}`;
+      }).catch(()=>{});
+    }
+  });
+}
+
+// ── 添加弹窗 ──────────────────────────────────────────
+async function openAddModal(i){
+  const a=searchResults[i];
+  pendingAlbum={...a};pendingCoverUrl=a.coverVerified?a.coverUrl:null;modalRating=0;
+  document.getElementById('m-title').textContent=a.title;
+  document.getElementById('m-artist-p').textContent=a.artist||'—';
+  document.getElementById('m-year-p').textContent=a.year?a.year+'年':'';
+  document.getElementById('m-version-p').textContent=a.disambiguation||'';
+  document.getElementById('m-note').value='';
+  populateMainGenre('m-genre-main',a.genreMain||'');
+  updateSubGenre('m-genre-sub','m-genre-main',a.genreSub||'');
+  renderModalCover();refreshStars('modal-stars',0);
+  document.getElementById('m-tracklist-wrap').innerHTML='';
+  if(a.mbid) fetchTracklist(a.mbid);
+  document.getElementById('add-modal').style.display='flex';
+}
+async function fetchTracklist(mbid){
+  try{
+    const data=await(await fetch(`https://musicbrainz.org/ws/2/release/${mbid}?inc=recordings&fmt=json`,{headers:{'User-Agent':'AlbumTracker/4.0'}})).json();
+    const media=data.media||[];
+    let html='<div class="tracklist"><div class="tracklist-title">曲目列表'+(media.length>1?' ('+media.length+' 碟)':'')+'</div>';
+    for(const m of media){
+      if(media.length>1)html+=`<div class="track-item" style="background:#f9f9f7;font-size:11px;color:#999">碟 ${m.position}</div>`;
+      for(const t of(m.tracks||[]))html+=`<div class="track-item"><span class="track-num">${t.position}</span><span class="track-name">${esc(t.title)}</span><span class="track-dur">${t.length?formatDur(t.length):''}</span></div>`;
+    }
+    document.getElementById('m-tracklist-wrap').innerHTML=html+'</div>';
+    if(pendingAlbum)pendingAlbum.tracklist=media.flatMap(m=>(m.tracks||[]).map(t=>({pos:t.position,title:t.title,dur:t.length||0})));
+  }catch(e){}
+}
+function formatDur(ms){const s=Math.round(ms/1000);return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
+function closeAddModal(){document.getElementById('add-modal').style.display='none';pendingAlbum=null;pendingCoverUrl=null;}
+function renderModalCover(){
+  document.getElementById('m-cover-slot').innerHTML=pendingCoverUrl?`<img class="m-cover" src="${esc(pendingCoverUrl)}">`:'<div class="m-cover-ph">♪</div>';
+  document.getElementById('m-mbid-btn').innerHTML=pendingAlbum?.mbid?`<button class="cover-btn" onclick="window.open('https://musicbrainz.org/release/${pendingAlbum.mbid}','_blank')">MusicBrainz ↗</button>`:'';
+}
+function handleCoverUpload(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=ev=>{pendingCoverUrl=ev.target.result;renderModalCover();};r.readAsDataURL(f);e.target.value='';
+}
+function saveFromSearch(){
+  if(!pendingAlbum)return;
+  addToLibrary({...pendingAlbum,coverUrl:pendingCoverUrl,rating:modalRating,note:document.getElementById('m-note').value.trim(),genreMain:document.getElementById('m-genre-main').value,genreSub:document.getElementById('m-genre-sub').value});
+  closeAddModal();switchTab('library');
+}
+
+// ── 手动添加 ──────────────────────────────────────────
+function saveManual(){
+  const title=document.getElementById('mi-title').value.trim();
+  const artist=document.getElementById('mi-artist').value.trim();
+  if(!title||!artist){alert('请至少填写专辑名称和艺术家');return;}
+  const coverFile=document.getElementById('mi-cover').files[0];
+  const finish=coverUrl=>{
+    addToLibrary({title,artist,year:document.getElementById('mi-year').value.trim(),genreMain:document.getElementById('mi-genre-main').value,genreSub:document.getElementById('mi-genre-sub').value,tracks:+document.getElementById('mi-tracks').value||0,coverUrl,rating:miStarRating,note:document.getElementById('mi-note').value.trim(),mbid:'',source:'manual',tracklist:[]});
+    ['mi-title','mi-year','mi-tracks','mi-note'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('mi-genre-main').value='';
+    document.getElementById('mi-genre-sub').innerHTML='<option value="">-- 子流派 --</option>';
+    document.getElementById('mi-cover').value='';
+    miStarRating=0;refreshStars('mi-stars',0);
+    switchTab('library');
+  };
+  if(coverFile){const r=new FileReader();r.onload=ev=>finish(ev.target.result);r.readAsDataURL(coverFile);}
+  else finish(null);
+}
+
+// ── 核心：加入收藏 ────────────────────────────────────
+function addToLibrary(a){
+  const q=encodeURIComponent(`${a.title} ${a.artist}`);
+  const album={id:Date.now(),...a,addedAt:new Date().toISOString(),links:{
+    douban:`https://music.douban.com/subject_search?search_text=${q}&cat=1003`,
+    lastfm:`https://www.last.fm/search/albums?q=${q}`,
+    rym:`https://rateyourmusic.com/search?searchterm=${q}&searchtype=l`,
+    allmusic:`https://www.allmusic.com/search/albums/${q}`,
+    pitchfork:`https://pitchfork.com/search/?query=${q}`,
+  }};
+  library.unshift(album);
+  saveLibrary();
+  sbUpsert(album);
+}
+function delAlbum(id){
+  if(!confirm('确定移除这张专辑吗？'))return;
+  library=library.filter(a=>a.id!==id);
+  saveLibrary();updateGenreFilters();renderLib();closeDetailModal();
+  sbDelete(id);
+}
+
+// ── 详情弹窗 ──────────────────────────────────────────
+function openDetail(id){
+  const a=library.find(x=>x.id===id);if(!a)return;
+  detailAlbumId=id;detailEditMode=false;
+  renderDetailView(a);
+  document.getElementById('detail-del-btn').onclick=()=>delAlbum(id);
+  document.getElementById('detail-edit-btn').textContent='编辑';
+  document.getElementById('detail-modal').style.display='flex';
+}
+function renderDetailView(a){
+  const col=gc(a.genreMain);
+  const genreLabel=[a.genreMain,a.genreSub].filter(Boolean).join(' › ');
+  let trackHtml='';
+  if(a.tracklist?.length){
+    trackHtml=`<div class="detail-section"><div class="detail-section-title">曲目列表 · ${a.tracklist.length}首</div><div class="detail-tracklist">${a.tracklist.map(t=>`<div class="track-item"><span class="track-num">${t.pos}</span><span class="track-name">${esc(t.title)}</span><span class="track-dur">${t.dur?formatDur(t.dur):''}</span></div>`).join('')}</div></div>`;
+  }else if(a.tracks){
+    trackHtml=`<div class="detail-section"><div class="detail-section-title">曲目</div><div style="font-size:13px;color:#888">${a.tracks} 首（曲目详情未获取）</div></div>`;
+  }
+  document.getElementById('detail-content').innerHTML=`
+    <div class="detail-header">
+      ${a.coverUrl?`<img class="detail-cover" src="${esc(a.coverUrl)}">`:'<div class="detail-cover-ph">♪</div>'}
+      <div class="detail-info">
+        <div class="detail-title">${esc(a.title)}</div>
+        <div class="detail-artist">${esc(a.artist||'')}</div>
+        <div class="detail-meta">
+          ${a.year?`<span class="detail-tag">${a.year}</span>`:''}
+          ${genreLabel?`<span class="detail-tag" style="background:${col.bg};color:${col.c}">${genreLabel}</span>`:''}
+          ${a.disambiguation?`<span class="detail-tag" style="background:#fff3cd;color:#856404">${esc(a.disambiguation)}</span>`:''}
+        </div>
+        <div class="detail-stars">${starsHtml(a.rating,15)}</div>
+        <div class="detail-links">
+          <a class="detail-link" href="${a.links?.douban||'#'}" target="_blank">豆瓣</a>
+          <a class="detail-link" href="${a.links?.lastfm||'#'}" target="_blank">Last.fm</a>
+          <a class="detail-link" href="${a.links?.rym||'#'}" target="_blank">RYM</a>
+          <a class="detail-link" href="${a.links?.allmusic||'#'}" target="_blank">AllMusic</a>
+          <a class="detail-link" href="${a.links?.pitchfork||'#'}" target="_blank">Pitchfork</a>
+          ${a.mbid?`<a class="detail-link" href="https://musicbrainz.org/release/${a.mbid}" target="_blank">MusicBrainz</a>`:''}
+        </div>
+      </div>
+    </div>
+    ${a.note?`<div class="detail-section"><div class="detail-section-title">我的笔记</div><div class="detail-note">${esc(a.note)}</div></div>`:''}
+    ${trackHtml}`;
+}
+function renderDetailEdit(a){
+  const mainOpts=Object.keys(GENRE_TREE).map(g=>`<option${g===a.genreMain?' selected':''}>${g}</option>`).join('');
+  const subOpts=(GENRE_TREE[a.genreMain]||[]).map(s=>`<option${s===a.genreSub?' selected':''}>${s}</option>`).join('');
+  detailEditRating=a.rating||0;
+  const starSpans=[...Array(MAX_STARS)].map((_,i)=>`<span class="star${detailEditRating>=(i+1)?' on':''}" data-v="${i+1}" onclick="setDeRating(${i+1})" onmouseenter="hoverDeStars(${i+1})" onmouseleave="leaveDeStars()">★</span>`).join('');
+  document.getElementById('detail-content').innerHTML=`
+    <div class="detail-header">
+      ${a.coverUrl?`<img class="detail-cover" src="${esc(a.coverUrl)}">`:'<div class="detail-cover-ph">♪</div>'}
+      <div class="detail-info" style="display:flex;flex-direction:column;gap:8px;padding-top:4px">
+        <div class="detail-title">${esc(a.title)}</div>
+        <div class="detail-artist">${esc(a.artist||'')}</div>
+        <div><div style="font-size:11px;color:#999;margin-bottom:3px">年份</div><input type="number" id="de-year" value="${esc(a.year||'')}" placeholder="e.g. 1985" min="1900" max="2099" style="width:100%;padding:6px 8px;font-size:13px"></div>
+        <div><div style="font-size:11px;color:#999;margin-bottom:3px">流派</div><div style="display:flex;gap:6px"><select id="de-genre-main" onchange="deUpdateSub()" style="flex:1;padding:6px 8px;font-size:13px"><option value="">-- 主流派 --</option>${mainOpts}</select><select id="de-genre-sub" style="flex:1;padding:6px 8px;font-size:13px"><option value="">-- 子流派 --</option>${subOpts}</select></div></div>
+        <div><div style="font-size:11px;color:#999;margin-bottom:3px">评分（10分制）</div><div class="star-row" id="de-stars" style="gap:2px">${starSpans}</div></div>
+      </div>
+    </div>
+    <div style="margin-top:12px"><div style="font-size:11px;color:#999;margin-bottom:3px">个人笔记</div><textarea id="de-note" style="width:100%;height:80px;resize:none;font-size:13px;padding:8px;border-radius:8px;border:0.5px solid #ddd;font-family:inherit">${esc(a.note||'')}</textarea></div>`;
+}
+function deUpdateSub(){
+  const main=document.getElementById('de-genre-main').value;
+  document.getElementById('de-genre-sub').innerHTML='<option value="">-- 子流派 --</option>'+(GENRE_TREE[main]||[]).map(s=>`<option>${s}</option>`).join('');
+}
+function setDeRating(v){detailEditRating=v;document.querySelectorAll('#de-stars .star').forEach(s=>s.classList.toggle('on',+s.dataset.v<=v));}
+function hoverDeStars(v){document.querySelectorAll('#de-stars .star').forEach(s=>s.classList.toggle('on',+s.dataset.v<=v));}
+function leaveDeStars(){document.querySelectorAll('#de-stars .star').forEach(s=>s.classList.toggle('on',+s.dataset.v<=detailEditRating));}
+function toggleDetailEdit(){
+  const a=library.find(x=>x.id===detailAlbumId);if(!a)return;
+  detailEditMode=!detailEditMode;
+  const btn=document.getElementById('detail-edit-btn');
+  if(detailEditMode){
+    renderDetailEdit(a);btn.textContent='保存';
+    btn.style.cssText='background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-size:12px;padding:5px 12px';
+  }else{
+    a.year=document.getElementById('de-year').value.trim();
+    a.genreMain=document.getElementById('de-genre-main').value;
+    a.genreSub=document.getElementById('de-genre-sub').value;
+    a.rating=detailEditRating;
+    a.note=document.getElementById('de-note').value.trim();
+    saveLibrary();updateGenreFilters();renderLib();renderDetailView(a);
+    sbUpsert(a);
+    btn.textContent='编辑';btn.style.cssText='font-size:12px;padding:5px 12px;color:#666';
+  }
+}
+function closeDetailModal(){document.getElementById('detail-modal').style.display='none';detailEditMode=false;}
+
+// ── 渲染辅助 ──────────────────────────────────────────
+function starsHtml(r,size=11){
+  if(!r)return`<span style="font-size:11px;color:#bbb">未评分</span>`;
+  return[...Array(MAX_STARS)].map((_,i)=>`<span style="color:${i<r?'#EF9F27':'#ddd'};font-size:${size}px">★</span>`).join('');
+}
+function updateTopCount(){document.getElementById('top-count').textContent=library.length?`${library.length} 张专辑`:'';}
+function updateGenreFilters(){
+  const mainSel=document.getElementById('f-genre-main');
+  const curMain=mainSel.value;
+  const mains=[...new Set(library.map(a=>a.genreMain).filter(Boolean))].sort();
+  mainSel.innerHTML='<option value="">全部流派</option>'+mains.map(g=>`<option${g===curMain?' selected':''}>${g}</option>`).join('');
+  onFilterGenreMain(false);
+}
+function onFilterGenreMain(doRender=true){
+  const main=document.getElementById('f-genre-main').value;
+  const subSel=document.getElementById('f-genre-sub');
+  const subs=[...new Set(library.filter(a=>(!main||a.genreMain===main)&&a.genreSub).map(a=>a.genreSub))].sort();
+  subSel.innerHTML='<option value="">全部子流派</option>'+subs.map(s=>`<option>${s}</option>`).join('');
+  if(doRender) renderLib();
+}
+function onSearchInput(){currentPage=1;renderLib();}
+function renderLib(){
+  const gm=document.getElementById('f-genre-main').value;
+  const gs=document.getElementById('f-genre-sub').value;
+  const rf=+document.getElementById('f-rating').value||0;
+  const sort=document.getElementById('f-sort').value;
+  const sq=(document.getElementById('f-search')?.value||'').trim().toLowerCase();
+  let list=library.filter(a=>{
+    if(gm&&a.genreMain!==gm)return false;
+    if(gs&&a.genreSub!==gs)return false;
+    if(rf&&!(a.rating>=rf))return false;
+    if(sq&&!(a.title.toLowerCase().includes(sq)||(a.artist||'').toLowerCase().includes(sq)))return false;
+    return true;
+  });
+  if(sort==='rating')list=[...list].sort((a,b)=>b.rating-a.rating);
+  else if(sort==='artist')list=[...list].sort((a,b)=>(a.artist||'').localeCompare(b.artist||''));
+  else if(sort==='title')list=[...list].sort((a,b)=>a.title.localeCompare(b.title));
+  else if(sort==='year')list=[...list].sort((a,b)=>(b.year||0)-(a.year||0));
+  filteredList=list;
+  const totalPages=Math.ceil(list.length/PAGE_SIZE)||1;
+  if(currentPage>totalPages)currentPage=1;
+  const pageList=list.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
+  const showing=list.length>PAGE_SIZE?` · 第${(currentPage-1)*PAGE_SIZE+1}–${Math.min(currentPage*PAGE_SIZE,list.length)}张`:'';
+  document.getElementById('lib-count').textContent=`共 ${list.length} 张专辑${showing}`;
+  const container=document.getElementById('lib-container');
+  if(!list.length){container.innerHTML='<div class="empty">没有符合条件的专辑</div>';renderPager(0,0);return;}
+  if(currentLayout==='grid')renderGrid(container,pageList);
+  else renderList(container,pageList);
+  renderPager(totalPages,currentPage);
+}
+function renderPager(total,cur){
+  let el=document.getElementById('lib-pager');
+  if(!el){el=document.createElement('div');el.id='lib-pager';document.getElementById('lib-container').after(el);}
+  if(total<=1){el.innerHTML='';return;}
+  let pages=[1];
+  if(cur>4)pages.push('…');
+  for(let i=Math.max(2,cur-2);i<=Math.min(total-1,cur+2);i++)pages.push(i);
+  if(cur<total-3)pages.push('…');
+  if(total>1)pages.push(total);
+  el.innerHTML=`<div style="display:flex;gap:6px;justify-content:center;margin-top:18px;flex-wrap:wrap">
+    <button onclick="goPage(${cur-1})" ${cur===1?'disabled':''} style="padding:5px 11px;font-size:13px">‹</button>
+    ${pages.map(p=>p==='…'?`<span style="padding:5px 4px;color:#aaa;font-size:13px">…</span>`:`<button onclick="goPage(${p})" style="padding:5px 11px;font-size:13px${p===cur?';background:#1a1a1a;color:#fff;border-color:#1a1a1a':''}">${p}</button>`).join('')}
+    <button onclick="goPage(${cur+1})" ${cur===total?'disabled':''} style="padding:5px 11px;font-size:13px">›</button>
+  </div>`;
+}
+function goPage(p){
+  currentPage=Math.max(1,Math.min(Math.ceil(filteredList.length/PAGE_SIZE)||1,p));
+  window.scrollTo({top:document.getElementById('lib-container').offsetTop-80,behavior:'smooth'});
+  renderLib();
+}
+function renderGrid(container,list){
+  container.innerHTML=`<div class="album-grid">${list.map(a=>{
+    const col=gc(a.genreMain);const genreLabel=[a.genreMain,a.genreSub].filter(Boolean).join(' › ');
+    const isSel=selectedIds.has(a.id);
+    return`<div class="acard${isSel?' selected':''}" data-aid="${a.id}" onclick="${selectMode?`toggleSelectId(${a.id},event)`:`openDetail(${a.id})`}">
+      ${a.coverUrl?`<img class="acard-cover" src="${esc(a.coverUrl)}">`:'<div class="acard-cover-ph">♪</div>'}
+      ${selectMode?`<div class="acard-check" onclick="toggleSelectId(${a.id},event)">${isSel?'✓':''}</div>`:`<button class="del-btn" onclick="event.stopPropagation();delAlbum(${a.id})">✕</button>`}
+      <div class="acard-body">
+        ${genreLabel?`<span class="genre-badge" style="background:${col.bg};color:${col.c}">${esc(genreLabel)}</span>`:''}
+        <div class="acard-title" title="${esc(a.title)}">${esc(a.title)}</div>
+        <div class="acard-artist">${esc(a.artist||'')}${a.year?' · '+a.year:''}</div>
+        <div class="acard-stars">${starsHtml(a.rating)}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+function renderList(container,list){
+  container.innerHTML=`<div class="album-list">${list.map(a=>{
+    const col=gc(a.genreMain);const genreLabel=[a.genreMain,a.genreSub].filter(Boolean).join(' › ');
+    const isSel=selectedIds.has(a.id);
+    return`<div class="lrow${isSel?' selected':''}" data-aid="${a.id}" onclick="${selectMode?`toggleSelectId(${a.id},event)`:`openDetail(${a.id})`}">
+      ${selectMode?`<div class="lrow-check" onclick="toggleSelectId(${a.id},event)">${isSel?'✓':''}</div>`:''}
+      <div class="lrow-cover">${a.coverUrl?`<img src="${esc(a.coverUrl)}">`:'♪'}</div>
+      <div class="lrow-info">
+        <div class="lrow-title">${esc(a.title)}${a.disambiguation?` <span style="font-size:11px;color:#c0392b">(${esc(a.disambiguation)})</span>`:''}</div>
+        <div class="lrow-sub">${esc(a.artist||'')}${a.year?' · '+a.year:''}${genreLabel?` · <span style="color:${col.c}">${esc(genreLabel)}</span>`:''}</div>
+      </div>
+      <div class="lrow-right">
+        <div class="lrow-stars">${starsHtml(a.rating)}</div>
+        ${!selectMode?`<button class="lrow-del" onclick="event.stopPropagation();delAlbum(${a.id})" title="移除">✕</button>`:''}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── 批量删除 ──────────────────────────────────────────
+function toggleSelectMode(){
+  selectMode=!selectMode;selectedIds.clear();
+  document.getElementById('bulk-bar').style.display=selectMode?'flex':'none';
+  document.getElementById('btn-select-mode').textContent=selectMode?'退出选择':'批量删除';
+  renderLib();
+}
+function toggleSelectId(id,e){
+  e.stopPropagation();
+  if(selectedIds.has(id))selectedIds.delete(id);else selectedIds.add(id);
+  updateBulkCount();
+  const card=document.querySelector(`[data-aid="${id}"]`);
+  if(card){card.classList.toggle('selected',selectedIds.has(id));const chk=card.querySelector('.acard-check,.lrow-check');if(chk)chk.textContent=selectedIds.has(id)?'✓':'';}
+}
+function updateBulkCount(){document.getElementById('bulk-sel-count').textContent=`已选 ${selectedIds.size} 张`;}
+function bulkSelectAll(){
+  filteredList.forEach(a=>selectedIds.add(a.id));
+  document.querySelectorAll('[data-aid]').forEach(el=>{el.classList.add('selected');const chk=el.querySelector('.acard-check,.lrow-check');if(chk)chk.textContent='✓';});
+  updateBulkCount();
+}
+function bulkDeselectAll(){
+  selectedIds.clear();
+  document.querySelectorAll('[data-aid]').forEach(el=>{el.classList.remove('selected');const chk=el.querySelector('.acard-check,.lrow-check');if(chk)chk.textContent='';});
+  updateBulkCount();
+}
+function bulkDeleteSelected(){
+  if(!selectedIds.size){alert('请先选择要删除的专辑');return;}
+  if(!confirm(`确定删除选中的 ${selectedIds.size} 张专辑吗？此操作不可撤销。`))return;
+  const toDelete=[...selectedIds];
+  library=library.filter(a=>!selectedIds.has(a.id));
+  selectedIds.clear();saveLibrary();updateGenreFilters();renderLib();updateBulkCount();
+  sbDeleteMany(toDelete);
+}
+
+// ── 导出 / 导入 CSV ───────────────────────────────────
+function exportCSV(){
+  if(!library.length){alert('收藏为空，无法导出');return;}
+  const headers=['id','title','artist','year','genreMain','genreSub','tracks','rating','note','addedAt'];
+  const rows=library.map(a=>headers.map(k=>JSON.stringify(String(a[k]??''))).join(','));
+  const csv='\uFEFF'+[headers.join(','),...rows].join('\n');
+  const el=document.createElement('a');el.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);el.download='我的专辑收藏.csv';el.click();
+}
+function importCSV(e){
+  const file=e.target.files[0];if(!file)return;
+  const tryParse=(text)=>{
+    const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean);
+    if(!lines.length)throw new Error('文件为空');
+    const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+    const isDouban=headers.includes('标题')||headers.includes('简介');
+    return lines.slice(1).map((line,idx)=>{
+      const vals=[];let cur='',inQ=false;
+      for(const ch of line+','){if(ch==='"'){inQ=!inQ;}else if(ch===','&&!inQ){vals.push(cur);cur='';}else cur+=ch;}
+      const obj={};headers.forEach((h,i)=>{obj[h]=(vals[i]||'').trim().replace(/^"|"$/g,'');});
+      let title,artist,year,rating;
+      if(isDouban){
+        title=obj['标题']||'';
+        const intro=obj['简介']||'';
+        const si=intro.lastIndexOf(' / ');
+        if(si>=0){artist=intro.slice(0,si).trim();year=intro.slice(si+3).trim().replace(/\D/g,'').slice(0,4);}
+        else{artist=intro.trim();year='';}
+        const myR=parseFloat(obj['我的评分']||'0');
+        const dbR=parseFloat(obj['豆瓣评分']||'0');
+        // 直接用CSV里的评分值（用户已在Excel里×2）
+        rating=myR>0?Math.min(MAX_STARS,Math.max(1,Math.round(myR))):dbR>0?Math.min(MAX_STARS,Math.round(dbR)):0;
+      }else{
+        title=obj.title||'';artist=obj.artist||'';year=obj.year||'';rating=Math.min(MAX_STARS,+obj.rating||0);
+      }
+      if(!title)return null;
+      const q=encodeURIComponent(`${title} ${artist}`);
+      return{
+        id:Date.now()+idx*13+Math.random(),title,artist,year,
+        genreMain:obj.genreMain||'',genreSub:obj.genreSub||'',
+        tracks:+obj.tracks||0,rating,
+        note:obj['评论']||obj.note||'',
+        addedAt:obj['创建时间']||obj.addedAt||new Date().toISOString(),
+        coverUrl:null,tracklist:[],mbid:'',source:isDouban?'douban':'csv',
+        links:{
+          douban:obj['链接']||`https://music.douban.com/subject_search?search_text=${q}&cat=1003`,
+          lastfm:`https://www.last.fm/search/albums?q=${q}`,
+          rym:`https://rateyourmusic.com/search?searchterm=${q}&searchtype=l`,
+          allmusic:`https://www.allmusic.com/search/albums/${q}`,
+          pitchfork:`https://pitchfork.com/search/?query=${q}`,
+        }
+      };
+    }).filter(Boolean);
+  };
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const gbkText=new TextDecoder('gbk',{fatal:false}).decode(ev.target.result);
+    const isGBK=/标题|简介|评分|创建时间/.test(gbkText.split('\n')[0]);
+    const text=isGBK?gbkText:new TextDecoder('utf-8').decode(ev.target.result);
+    try{
+      const imported=tryParse(text);
+      const existingKeys=new Set(library.map(a=>(a.title+'::'+a.artist).toLowerCase()));
+      const newOnes=imported.filter(a=>!existingKeys.has((a.title+'::'+a.artist).toLowerCase()));
+      library=[...newOnes,...library];saveLibrary();updateGenreFilters();renderLib();
+      // 批量 upsert 到 Supabase（分批，每次20条避免请求过大）
+      if(newOnes.length){
+        setSyncStatus('syncing',`上传 ${newOnes.length} 张…`);
+        (async()=>{
+          for(let i=0;i<newOnes.length;i+=20){
+            const batch=newOnes.slice(i,i+20);
+            try{
+              await fetch(`${SB_URL}/rest/v1/albums`,{
+                method:'POST',headers:{...SB_HEADERS,'Prefer':'resolution=merge-duplicates,return=minimal'},
+                body:JSON.stringify(batch.map(albumToDbRow))
+              });
+            }catch(e){console.error('batch upsert error:',e);}
+          }
+          setSyncStatus('ok','已同步');
+        })();
+      }
+      alert(`导入完成！\n新增 ${newOnes.length} 张，跳过重复 ${imported.length-newOnes.length} 张`);
+    }catch(err){alert('导入失败：'+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value='';
+}
+// ── 批量数据补全 ──────────────────────────────────────
+let enrichRunning=false, enrichPaused=false, enrichStop=false;
+
+function startEnrich(){
+  const targets=library.filter(a=>!a.coverUrl||!a.genreMain||!a.year);
+  if(!targets.length){alert('所有专辑的封面、流派、年份已经完整，无需补全！');return;}
+  if(enrichRunning){alert('补全任务已在运行中');return;}
+  if(!confirm(`即将为 ${targets.length} 张缺少封面/流派/年份的专辑补全数据。\n\n这会在后台慢慢运行，你可以随时暂停或停止。\n\n开始吗？`))return;
+  enrichRunning=true;enrichPaused=false;enrichStop=false;
+  document.getElementById('enrich-bar').style.display='flex';
+  document.getElementById('enrich-start-btn').disabled=true;
+  runEnrich(targets);
+}
+
+async function runEnrich(targets){
+  let done=0,covered=0,genred=0,yeard=0;
+  const total=targets.length;
+  const DELAY=400; // 每张之间间隔400ms，避免被API限速
+
+  for(const a of targets){
+    if(enrichStop) break;
+    while(enrichPaused) await sleep(300);
+
+    // 更新进度条
+    const pct=Math.round(done/total*100);
+    document.getElementById('enrich-prog').style.width=pct+'%';
+    document.getElementById('enrich-label').textContent=`正在补全 (${done}/${total})`;
+    document.getElementById('enrich-detail').textContent=`${esc(a.title)} — ${esc(a.artist||'')}`;
+
+    let gotCover=!!a.coverUrl, gotGenre=!!a.genreMain, gotYear=!!a.year;
+
+    try{
+      if(a.mbid){
+        // ── MusicBrainz 来源：用 mbid 精准查 ──────────────
+        // 1. 封面：Cover Art Archive
+        if(!gotCover){
+          const coverUrl=await fetchMBCover(a.mbid);
+          if(coverUrl){a.coverUrl=coverUrl;gotCover=true;covered++;}
+        }
+        // 2. 通过 MusicBrainz 关系拿 Wikipedia 链接
+        if(!gotGenre||!gotYear){
+          const wikiTitle=await fetchMBWikiTitle(a.mbid);
+          if(wikiTitle){
+            const info=await fetchWikiInfobox(wikiTitle);
+            if(info.year&&!gotYear){a.year=info.year;gotYear=true;yeard++;}
+            if(info.genre&&!gotGenre){
+              const {main,sub}=matchGenre(info.genre);
+              if(main){a.genreMain=main;a.genreSub=sub;gotGenre=true;genred++;}
+            }
+          }
+        }
+      } else {
+        // ── Last.fm / 豆瓣来源：用名字模糊查 ──────────────
+        // 1. 封面：Last.fm getinfo
+        if(!gotCover){
+          const coverUrl=await fetchLFMCover(a.title,a.artist);
+          if(coverUrl){a.coverUrl=coverUrl;gotCover=true;covered++;}
+        }
+        // 2. Wikipedia 模糊搜索补流派+年份
+        if(!gotGenre||!gotYear){
+          const wikiTitle=await fetchWikiSearch(a.title,a.artist);
+          if(wikiTitle){
+            const info=await fetchWikiInfobox(wikiTitle);
+            if(info.year&&!gotYear){a.year=info.year;gotYear=true;yeard++;}
+            if(info.genre&&!gotGenre){
+              const {main,sub}=matchGenre(info.genre);
+              if(main){a.genreMain=main;a.genreSub=sub;gotGenre=true;genred++;}
+            }
+          }
+        }
+      }
+    }catch(e){console.warn('Enrich error:',a.title,e.message);}
+
+    done++;
+    // 每10张保存一次
+    if(done%10===0){saveLibrary();renderLib();
+      // 同步这批到 Supabase
+      const batch=targets.slice(Math.max(0,done-10),done);
+      fetch(`${SB_URL}/rest/v1/albums`,{method:'POST',headers:{...SB_HEADERS,'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(batch.map(albumToDbRow))}).catch(()=>{});
+    }
+    await sleep(DELAY);
+  }
+
+  // 最终保存
+  saveLibrary();updateGenreFilters();renderLib();
+  // 同步剩余的到 Supabase
+  const remaining=targets.slice(Math.floor(done/10)*10,done);
+  if(remaining.length){
+    fetch(`${SB_URL}/rest/v1/albums`,{method:'POST',headers:{...SB_HEADERS,'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(remaining.map(albumToDbRow))}).catch(()=>{});
+  }
+  enrichRunning=false;
+  document.getElementById('enrich-start-btn').disabled=false;
+  document.getElementById('enrich-prog').style.width='100%';
+  document.getElementById('enrich-label').textContent=enrichStop?'已停止':'补全完成！';
+  document.getElementById('enrich-detail').textContent=
+    `封面 +${covered} · 流派 +${genred} · 年份 +${yeard}（共处理 ${done} 张）`;
+}
+
+function toggleEnrichPause(){
+  enrichPaused=!enrichPaused;
+  document.getElementById('enrich-pause-btn').textContent=enrichPaused?'继续':'暂停';
+  document.getElementById('enrich-label').textContent=enrichPaused?'已暂停，点继续恢复…':'正在补全…';
+}
+function stopEnrich(){
+  enrichStop=true;enrichRunning=false;enrichPaused=false;
+  document.getElementById('enrich-start-btn').disabled=false;
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ── 补全用的 API 函数 ─────────────────────────────────
+
+// MusicBrainz Cover Art Archive
+async function fetchMBCover(mbid){
+  try{
+    const res=await fetchWithTimeout(`https://coverartarchive.org/release/${mbid}/front-250`,3000);
+    if(res.ok) return res.url; // 重定向后的真实图片URL
+    return null;
+  }catch(e){return null;}
+}
+
+// MusicBrainz → Wikipedia 页面名（通过 MB 关系表）
+async function fetchMBWikiTitle(mbid){
+  try{
+    const data=await (await fetchWithTimeout(
+      `https://musicbrainz.org/ws/2/release/${mbid}?inc=url-rels&fmt=json`,
+      5000,{'User-Agent':'AlbumTracker/6.0'}
+    )).json();
+    const rels=data.relations||[];
+    const wikiRel=rels.find(r=>r.url?.resource?.includes('en.wikipedia.org/wiki/'));
+    if(wikiRel){
+      return decodeURIComponent(wikiRel.url.resource.split('/wiki/')[1]);
+    }
+    return null;
+  }catch(e){return null;}
+}
+
+// Wikipedia 模糊搜索（用于 Last.fm/豆瓣来源）
+async function fetchWikiSearch(title,artist){
+  try{
+    const q=`${title} ${artist} album`;
+    const sd=await (await fetchWithTimeout(
+      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=3&format=json&origin=*`,
+      5000
+    )).json();
+    const pages=sd?.query?.search||[];
+    if(!pages.length)return null;
+    return pages.find(p=>p.title.toLowerCase().includes(title.toLowerCase()))?.title||pages[0].title;
+  }catch(e){return null;}
+}
+
+// Wikipedia infobox 解析（流派 + 年份，供两种来源共用）
+async function fetchWikiInfobox(wikiTitle){
+  const result={year:null,genre:null};
+  try{
+    const wd=await (await fetchWithTimeout(
+      `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvsection=0&titles=${encodeURIComponent(wikiTitle)}&format=json&origin=*`,
+      5000
+    )).json();
+    const pages=Object.values(wd?.query?.pages||{});
+    if(!pages.length)return result;
+    const wikitext=pages[0]?.revisions?.[0]?.['*']||'';
+
+    // 年份
+    const relMatch=wikitext.match(/\|\s*released\s*=([^\n|}{]*(?:\{\{[^}]*\}\}[^\n|}{]*)?)/i);
+    if(relMatch){
+      const relStr=relMatch[1];
+      const sdM=relStr.match(/\{\{(?:start date|dts|release date)[^}]*\|\s*(\d{4})/i);
+      if(sdM)result.year=sdM[1];
+      else{const yrM=relStr.match(/\b(19|20)\d{2}\b/);if(yrM)result.year=yrM[0];}
+    }
+
+    // 流派：支持 | genre = [[Jazz]] 或 | genre = Jazz
+    const genreMatch=wikitext.match(/\|\s*genre\s*=([^\n|}{]*(?:\{\{[^}]*\}\}[^\n|}{]*)?)/i);
+    if(genreMatch){
+      // 提取 [[Jazz|...]] 或 [[Jazz]] 里的文字，或纯文本
+      const gStr=genreMatch[1];
+      const linkM=gStr.match(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/);
+      if(linkM)result.genre=linkM[1].trim();
+      else{const plainM=gStr.match(/[a-zA-Z][\w\s-]{2,}/);if(plainM)result.genre=plainM[0].trim();}
+    }
+  }catch(e){}
+  return result;
+}
+
+// Last.fm 封面抓取（用于无mbid的来源）
+async function fetchLFMCover(title,artist){
+  try{
+    const d=await (await fetchWithTimeout(
+      `https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(title)}&api_key=${LASTFM_KEY}&format=json`,
+      5000
+    )).json();
+    const info=d.album;if(!info)return null;
+    const img=(info.image||[]).find(i=>i.size==='extralarge')||{};
+    const url=img['#text'];
+    if(url&&!url.includes('2a96cbd8b46e442fc41c2b86b821562f'))return url;
+    return null;
+  }catch(e){return null;}
+}
+
+// ── fetchWithTimeout（补全版，支持自定义headers）─────
+// 覆盖原有同名函数，增加 headers 参数支持
+function fetchWithTimeout(url,ms=5000,headers={}){
+  const controller=new AbortController();
+  const tid=setTimeout(()=>controller.abort(),ms);
+  return fetch(url,{signal:controller.signal,headers}).finally(()=>clearTimeout(tid));
+}
+</script>
+
+</body>
+</html>
